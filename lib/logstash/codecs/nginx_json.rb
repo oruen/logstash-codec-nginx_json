@@ -4,11 +4,15 @@ require "logstash/codecs/json"
 class LogStash::Codecs::NginxJson < LogStash::Codecs::JSON
   config_name "nginx_json"
 
+  # http://www.codetable.net/hex/e3
   UNESCAPES = {
       'a' => "\x07", 'b' => "\x08", 't' => "\x09",
       'n' => "\x0a", 'v' => "\x0b", 'f' => "\x0c",
       'r' => "\x0d", 'e' => "\x1b", "\\\\" => "\x5c",
-      "\"" => "\x22", "'" => "\x27"
+      "\"" => "\x22", "'" => "\x27", 'ñ' => "\xf1",
+      '®' => "\xae", 'Ã' => "\xc3", 'Ö' => "\xd6",
+      'á' => "\xe1", 'ã' => "\xe3", 'é' => "\xe9",
+      'ó' => "\xf3", 'ý' => "\xfd"
   }
 
   def unescape(str)
