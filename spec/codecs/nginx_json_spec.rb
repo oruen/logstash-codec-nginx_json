@@ -1,4 +1,5 @@
 require "logstash/devutils/rspec/spec_helper"
+require 'logstash-core'
 require "logstash/codecs/nginx_json"
 require "logstash/event"
 require "logstash/json"
@@ -14,9 +15,9 @@ describe LogStash::Codecs::NginxJson do
       data = {"foo" => "bar", "baz" => {"bah" => ["a","b","c"]}}
       subject.decode(LogStash::Json.dump(data).gsub('"', '\x22')) do |event|
         insist { event.is_a? LogStash::Event }
-        insist { event["foo"] } == data["foo"]
-        insist { event["baz"] } == data["baz"]
-        insist { event["bah"] } == data["bah"]
+        insist { event.get("foo") } == data["foo"]
+        insist { event.get("baz") } == data["baz"]
+        insist { event.get("bah") } == data["bah"]
       end
     end
 
@@ -45,8 +46,8 @@ describe LogStash::Codecs::NginxJson do
         subject.decode("something that isn't json") do |event|
           decoded = true
           insist { event.is_a?(LogStash::Event) }
-          insist { event["message"] } == "something that isn't json"
-          insist { event["tags"] }.include?("_jsonparsefailure")
+          insist { event.get("message") } == "something that isn't json"
+          insist { event.get("tags") }.include?("_jsonparsefailure")
         end
         insist { decoded } == true
       end
@@ -67,11 +68,11 @@ describe LogStash::Codecs::NginxJson do
           end
 
           it "should store the value in 'message'" do
-            expect(event["message"]).to eql(value_json)
+            expect(event.get("message")).to eql(value_json)
           end
 
           it "should have the json parse failure tag" do
-            expect(event["tags"]).to include("_jsonparsefailure")
+            expect(event.get("tags")).to include("_jsonparsefailure")
           end
         end
       end
@@ -110,19 +111,6 @@ describe LogStash::Codecs::NginxJson do
       end
     end
 
-    context "processing weird binary blobs" do
-      it "falls back to plain text and doesn't crash (LOGSTASH-1595)" do
-        decoded = false
-        blob = (128..255).to_a.pack("C*").force_encoding("ASCII-8BIT")
-        subject.decode(blob) do |event|
-          decoded = true
-          insist { event.is_a?(LogStash::Event) }
-          insist { event["message"].encoding.to_s } == "UTF-8"
-        end
-        insist { decoded } == true
-      end
-    end
-
     context "when json could not be parsed" do
 
       let(:message)    { "random_message" }
@@ -135,13 +123,13 @@ describe LogStash::Codecs::NginxJson do
 
       it "uses an array to store the tags" do
         subject.decode(message) do |event|
-          expect(event['tags']).to be_a Array
+          expect(event.get("tags")).to be_a Array
         end
       end
 
       it "add a json parser failure tag" do
         subject.decode(message) do |event|
-          expect(event['tags']).to include "_jsonparsefailure"
+          expect(event.get("tags")).to include "_jsonparsefailure"
         end
       end
     end
@@ -151,9 +139,10 @@ describe LogStash::Codecs::NginxJson do
     it "should return json data" do
       data = {"foo" => "bar", "baz" => {"bah" => ["a","b","c"]}}
       event = LogStash::Event.new(data)
+      json_string = event.to_json
       got_event = false
       subject.on_event do |e, d|
-        insist { d.chomp } == LogStash::Event.new(data).to_json
+        insist { d.chomp } == json_string
         insist { LogStash::Json.load(d)["foo"] } == data["foo"]
         insist { LogStash::Json.load(d)["baz"] } == data["baz"]
         insist { LogStash::Json.load(d)["bah"] } == data["bah"]
